@@ -1,0 +1,21 @@
+# Environment variables — never commit secrets
+.env
+
+# Model weights — too large for git, upload separately to Hugging Face
+model/best_model.pth
+model/
+*.pth
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+#Virtual environments
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
