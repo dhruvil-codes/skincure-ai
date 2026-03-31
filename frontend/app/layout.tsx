@@ -42,12 +42,7 @@ export default function RootLayout({
       <body
         className="font-sans antialiased bg-background text-foreground relative min-h-screen"
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           <div className="relative z-10">
             {children}
           </div>
