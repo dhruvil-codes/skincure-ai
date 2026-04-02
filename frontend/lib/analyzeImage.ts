@@ -25,11 +25,22 @@ export async function analyzeImage(file: File): Promise<PredictResponse> {
         )
       }
 
-      if (detail?.error === 'low_confidence') {
+      // image_too_blurry — new explicit quality error
+      if (detail?.error === 'image_too_blurry') {
         throw new AppError(
-          'low_confidence',
-          'Photo quality is too low for a reliable analysis.',
-          'Try uploading a clearer photo in better lighting, closer to the affected area.'
+          'image_too_blurry',
+          'Your photo appears to be blurry or out of focus.',
+          'Please upload a sharper, clearly-focused photo in good lighting.'
+        )
+      }
+
+      // model_uncertain — AI cannot identify the condition (not a quality issue)
+      // Also handle old 'low_confidence' code from un-updated backends
+      if (detail?.error === 'model_uncertain' || detail?.error === 'low_confidence') {
+        throw new AppError(
+          'model_uncertain',
+          'The AI could not identify a condition in this photo.',
+          'Try a clearer, closer photo of the affected area in natural light, with the skin filling most of the frame.'
         )
       }
 

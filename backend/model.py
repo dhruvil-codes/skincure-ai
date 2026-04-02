@@ -224,49 +224,60 @@ class ModelManager:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Image validation helper
+# Image validation helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def is_skin_image(image_array: np.ndarray) -> dict:
     """
-    Check if image contains enough skin-like pixels.
-    Uses HSV colour space — skin tones fall in a specific hue/saturation range.
-    Works for all skin tones (light to dark).
+    Multi-factor check to verify the image contains real skin tissue.
+
+    Uses a combination of:
+      1. HSV skin-colour mask (two ranges covering all skin tones)
+      2. Blob continuity — skin pixels must form contiguous regions,
+         not just scattered colour-matched pixels (which cars can produce)
+      3. Colour uniformity test — paint/metal has very low saturation
+         variance; real skin has higher local variation
+      4. Edge-density vs skin-pixel ratio — manufactured objects have
+         many hard edges relative to skin-coloured area
 
     Args:
-        image_array: RGB numpy array representing the image.
+        image_array: RGB numpy array (uint8) in RGB order.
 
     Returns:
-        A dict with keys:
-            - is_skin (bool): Whether image has sufficient skin pixels
-            - skin_percentage (float): % of image that is skin-coloured
-            - reason (str): Human-readable explanation
+        dict with keys:
+            - is_skin (bool)
+            - skin_percentage (float)
+            - reason (str)   — 'OK' on success, human-readable on failure
     """
-    # Convert RGB to HSV colour space
+    h, w = image_array.shape[:2]
+    total_pixels = h * w
+
+    # ── 1. HSV skin-colour mask ──────────────────────────────────────────
     hsv = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
 
-    # Skin tone ranges in HSV — covers light to dark skin tones
-    # Range 1: Light to medium skin tones
-    lower1 = np.array([0, 20, 70], dtype=np.uint8)
-    upper1 = np.array([25, 255, 255], dtype=np.uint8)
+    # Light to medium skin tones (slightly tighter than before to reduce FP)
+    lower1 = np.array([0,  25, 80], dtype=np.uint8)
+    upper1 = np.array([22, 230, 255], dtype=np.uint8)
 
-    # Range 2: Darker skin tones
-    lower2 = np.array([160, 20, 70], dtype=np.uint8)
-    upper2 = np.array([180, 255, 255], dtype=np.uint8)
+    # Darker / olive skin tones and the wrap-around red hue
+    lower2 = np.array([165, 25, 60], dtype=np.uint8)
+    upper2 = np.array([180, 230, 255], dtype=np.uint8)
+
+    # Brown / darker complexions that sit in mid-orange hue
+    lower3 = np.array([5,  40, 40], dtype=np.uint8)
+    upper3 = np.array([25, 180, 200], dtype=np.uint8)
 
     mask1 = cv2.inRange(hsv, lower1, upper1)
     mask2 = cv2.inRange(hsv, lower2, upper2)
-    skin_mask = cv2.bitwise_or(mask1, mask2)
+    mask3 = cv2.inRange(hsv, lower3, upper3)
+    skin_mask = cv2.bitwise_or(cv2.bitwise_or(mask1, mask2), mask3)
 
-    # Calculate skin percentage
-    total_pixels = image_array.shape[0] * image_array.shape[1]
-    skin_pixels = cv2.countNonZero(skin_mask)
-    skin_pct = (skin_pixels / total_pixels) * 100
+    skin_pixels = int(cv2.countNonZero(skin_mask))
+    skin_pct    = (skin_pixels / total_pixels) * 100
 
-    # Minimum 15% of image must be skin-coloured
-    THRESHOLD = 15.0
+    MIN_SKIN_PCT = 15.0  # at least 15 % of the frame must be skin-coloured
 
-    if skin_pct < THRESHOLD:
+    if skin_pct < MIN_SKIN_PCT:
         return {
             "is_skin": False,
             "skin_percentage": round(skin_pct, 1),
@@ -276,9 +287,133 @@ def is_skin_image(image_array: np.ndarray) -> dict:
             ),
         }
 
+    # ── 2. Blob continuity check ─────────────────────────────────────────
+    # Real skin appears as large connected regions.  Scattered colour matches
+    # (e.g. car reflections) typically produce many tiny blobs.
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    cleaned = cv2.morphologyEx(skin_mask, cv2.MORPH_CLOSE, kernel)
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN,  kernel)
+
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(cleaned)
+
+    # Sum area of blobs that are at least 1% of the image
+    min_blob_area = total_pixels * 0.01
+    large_blobs   = [
+        stats[i, cv2.CC_STAT_AREA]
+        for i in range(1, num_labels)         # skip background (label 0)
+        if stats[i, cv2.CC_STAT_AREA] >= min_blob_area
+    ]
+
+    if not large_blobs:
+        return {
+            "is_skin": False,
+            "skin_percentage": round(skin_pct, 1),
+            "reason": (
+                "Skin-coloured pixels are too scattered. "
+                "Please ensure the affected skin area is clearly in frame."
+            ),
+        }
+
+    # The largest blob must cover ≥ 8 % of the total image
+    largest_blob_pct = (max(large_blobs) / total_pixels) * 100
+    if largest_blob_pct < 8.0:
+        return {
+            "is_skin": False,
+            "skin_percentage": round(skin_pct, 1),
+            "reason": (
+                "No large continuous skin region found. "
+                "Please upload a close-up photo of the affected area."
+            ),
+        }
+
+    # ── 3. Colour uniformity / paint test ────────────────────────────────
+    # Extract saturation channel within the largest skin blob.
+    # Manufactured surfaces (car paint, walls) are highly UNIFORM in saturation.
+    # Real skin has moderate local variation due to pores, texture, shadows.
+    sat_channel = hsv[:, :, 1].astype(np.float32)
+    sat_skin    = sat_channel[skin_mask > 0]
+
+    if sat_skin.size > 0:
+        sat_std = float(np.std(sat_skin))
+        # Paint / metal usually has sat_std < 18; real skin > 25
+        if sat_std < 15.0:
+            return {
+                "is_skin": False,
+                "skin_percentage": round(skin_pct, 1),
+                "reason": (
+                    "The image appears to show a uniform painted or synthetic surface, "
+                    "not skin. Please upload a photo of the affected skin area."
+                ),
+            }
+
+    # ── 4. Edge-density vs skin-area ratio ───────────────────────────────
+    # Manufactured objects (cars, furniture) have many hard edges relative to
+    # the area of skin-tone colours.  Real skin images have softer transitions.
+    gray       = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    edges      = cv2.Canny(gray, 50, 150)
+    edge_count = int(edges.sum() // 255)  # number of edge pixels
+
+    if skin_pixels > 0:
+        edge_skin_ratio = edge_count / skin_pixels
+        # If edges outnumber skin pixels 1:1 this is almost certainly not skin
+        if edge_skin_ratio > 0.9:
+            return {
+                "is_skin": False,
+                "skin_percentage": round(skin_pct, 1),
+                "reason": (
+                    "This image appears to contain an object rather than skin. "
+                    "Please upload a photo showing the affected skin area."
+                ),
+            }
+
+    # ── All checks passed ────────────────────────────────────────────────
     return {
         "is_skin": True,
         "skin_percentage": round(skin_pct, 1),
+        "reason": "OK",
+    }
+
+
+def check_image_quality(image_array: np.ndarray) -> dict:
+    """
+    Assess whether the image is sharp enough for reliable ML inference.
+
+    Uses the variance of the Laplacian (a widely-used blur metric):
+      - Very low variance → blurry / out-of-focus image
+      - Moderate / high variance → sufficiently sharp
+
+    A 4+ MB JPEG from a modern smartphone will almost always pass.
+
+    Args:
+        image_array: RGB numpy array.
+
+    Returns:
+        dict with keys:
+            - is_quality (bool)
+            - sharpness_score (float)  — Laplacian variance
+            - reason (str)
+    """
+    gray     = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    lap_var  = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    # Threshold calibrated so that genuine medical photos from modern phones
+    # (which often have high detail) always pass.  Only extremely blurry or
+    # artificially downscaled images will fail.
+    BLUR_THRESHOLD = 20.0
+
+    if lap_var < BLUR_THRESHOLD:
+        return {
+            "is_quality": False,
+            "sharpness_score": round(lap_var, 2),
+            "reason": (
+                f"Image appears blurry (sharpness score: {lap_var:.1f}). "
+                "Please upload a clearly-focused photo."
+            ),
+        }
+
+    return {
+        "is_quality": True,
+        "sharpness_score": round(lap_var, 2),
         "reason": "OK",
     }
 

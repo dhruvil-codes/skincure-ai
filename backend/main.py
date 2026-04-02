@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from disease_info import get_disease_info, get_friendly_name
-from model import ModelManager, is_skin_image, analyze_visual_features
+from model import ModelManager, is_skin_image, check_image_quality, analyze_visual_features
 
 # Load environment variables from .env (no-op in production where vars are injected)
 load_dotenv()
@@ -174,7 +174,20 @@ async def predict(file: UploadFile = File(...)) -> dict:
     # cv2 reads as BGR; convert to RGB before passing to the model
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # ── 4. Skin validation — reject non-skin images ───────────────────────
+    # ── 4. Image quality (blur) check ─────────────────────────────────────
+    quality_check = check_image_quality(img)
+    if not quality_check["is_quality"]:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "image_too_blurry",
+                "message": "Your photo appears to be blurry or out of focus.",
+                "suggestion": "Please upload a sharper, clearly-focused photo of the affected skin area.",
+                "sharpness_score": quality_check["sharpness_score"],
+            },
+        )
+
+    # ── 5. Skin validation — reject non-skin images ──────────────────────────
     skin_check = is_skin_image(img)
     if not skin_check["is_skin"]:
         raise HTTPException(
@@ -187,14 +200,14 @@ async def predict(file: UploadFile = File(...)) -> dict:
             },
         )
 
-    # ── 5. Guard — ensure model is available ──────────────────────────────
+    # ── 6. Guard — ensure model is available ──────────────────────────────
     if not ModelManager.is_loaded():
         raise HTTPException(
             status_code=503,
             detail="Model not loaded. Please check server configuration.",
         )
 
-    # ── 6. Run inference ──────────────────────────────────────────────────
+    # ── 7. Run inference ──────────────────────────────────────────────────
     try:
         predictions = ModelManager.predict(img, top_k=5)
     except Exception as exc:
@@ -203,36 +216,40 @@ async def predict(file: UploadFile = File(...)) -> dict:
             detail=f"Inference failed: {exc}",
         )
 
-    # ── 7. Validate confidence threshold ──────────────────────────────────
+    # ── 8. Validate confidence threshold ───────────────────────────────────
     top_confidence = predictions[0]["confidence"]
 
-    # Hard reject only truly uncertain predictions
-    if top_confidence < 25.0:
+    # Hard reject only truly uncertain predictions (lowered from 25 → 15 %
+    # because genuine skin photos of mild or early conditions can score low)
+    if top_confidence < 15.0:
         raise HTTPException(
             status_code=422,
             detail={
-                "error": "low_confidence",
-                "message": "We couldn't confidently identify a skin condition in this photo.",
-                "suggestion": "Please upload a clear, close-up photo of the affected skin area in good lighting.",
+                "error": "model_uncertain",
+                "message": "The AI could not confidently identify a skin condition in this photo.",
+                "suggestion": (
+                    "Try uploading a clearer, closer photo of the affected area in good natural light. "
+                    "Make sure the affected skin fills most of the frame."
+                ),
                 "top_confidence": top_confidence,
             },
         )
 
-    # Soft warning for borderline confidence
+    # Soft warning for borderline confidence (25–50 %)
     low_confidence_warning = None
-    if top_confidence < 45.0:
+    if top_confidence < 50.0:
         low_confidence_warning = (
             "The AI has low confidence in this result. "
-            "The photo may be too close, too dark, or the condition may be mild. "
-            "Please treat this as a rough indicator only."
+            "The condition may be mild, the photo slightly obscured, or it may not match "
+            "any condition in the training dataset. Treat this as a rough indicator only."
         )
 
-    # ── 8. Enrich top prediction with disease database info ───────────────
+    # ── 9. Enrich top prediction with disease database info ───────────────
     top: dict = predictions[0]
     info: dict = get_disease_info(top["disease"])
     severity_meta: dict = SEVERITY_LABELS.get(top["severity"], SEVERITY_LABELS["low"])
 
-    # ── 9. Generate visual analysis ────────────────────────────────────────
+    # ── 10. Generate visual analysis ───────────────────────────────────────
     visual_analysis: dict = analyze_visual_features(img, top["disease"])
 
     return {
