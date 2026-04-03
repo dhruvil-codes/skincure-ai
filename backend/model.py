@@ -114,15 +114,28 @@ class ModelManager:
             cls._config = json.load(f)
 
         # Build model matching the training architecture
-        cls._model = SkinModel(
+        model = SkinModel(
             model_name=cls._config["model_name"],
             num_classes=cls._config["num_classes"],
         ).to(cls._device)
 
+        # LFS Fallback: If HF Docker didn't pull the LFS file natively, it's left as a 130-byte text pointer.
+        if Path(model_path).exists() and Path(model_path).stat().st_size < 1000:
+            print(f"File {model_path} is an LFS pointer. Downloading actual weights from Hub...")
+            from huggingface_hub import hf_hub_download
+            model_path = hf_hub_download(
+                repo_id="dhruvilhere/skin-cure-api",
+                repo_type="space",
+                filename="model/best_model.pth"
+            )
+
         # Load saved weights from checkpoint
         checkpoint = torch.load(model_path, map_location=cls._device, weights_only=False)
-        cls._model.load_state_dict(checkpoint["model_state_dict"])
-        cls._model.eval()
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+
+        # Only assign to class variable after complete success
+        cls._model = model
 
         # Build the inference transform — must match val_transforms from training
         size: int = cls._config["image_size"]
