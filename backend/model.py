@@ -120,7 +120,7 @@ class ModelManager:
         ).to(cls._device)
 
         # Load saved weights from checkpoint
-        checkpoint = torch.load(model_path, map_location=cls._device, weights_only=True)
+        checkpoint = torch.load(model_path, map_location=cls._device, weights_only=False)
         cls._model.load_state_dict(checkpoint["model_state_dict"])
         cls._model.eval()
 
