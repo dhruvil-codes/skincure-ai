@@ -2,9 +2,9 @@ import { useState, useCallback, useRef } from 'react'
 import { AppError } from '@/lib/types'
 
 const ALLOWED_TYPES  = ['image/jpeg', 'image/png', 'image/webp']
-const MIN_SIZE_BYTES = 50 * 1024         // 50KB — rejects tiny icons/thumbnails
+const MIN_SIZE_BYTES = 5 * 1024          // 5KB — allows small smartphone snaps
 const MAX_SIZE_BYTES = 10 * 1024 * 1024  // 10MB
-const MIN_DIMENSION  = 200               // 200px minimum width or height
+const MIN_DIMENSION  = 50                // 50px minimum width or height
 
 export async function validateImageFile(file: File): Promise<string | null> {
   // 1. File type check

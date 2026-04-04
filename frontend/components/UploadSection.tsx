@@ -67,14 +67,17 @@ function DermatologistCTA() {
   }
 
   return (
-    <section className="bg-brand-teal-dark py-16 px-6">
-      <div className="max-w-lg mx-auto text-center">
+    <div className="max-w-lg mx-auto px-6 mt-4">
+      <Card className="border border-border rounded-2xl shadow-sm p-8 text-center bg-card">
 
         {/* Heading */}
-        <h2 className="font-display text-3xl text-white font-bold mb-2">
+        <h2 
+          className="font-display text-2xl font-bold text-foreground mb-3"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
           Ready to talk to a specialist?
         </h2>
-        <p className="text-white/70 text-base mb-8">
+        <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-sm mx-auto">
           Find dermatologists near you for a professional consultation.
         </p>
 
@@ -82,8 +85,7 @@ function DermatologistCTA() {
         {doctorState === 'idle' && (
           <Button
             size="lg"
-            className="bg-white text-brand-teal hover:bg-white/90
-                       font-semibold px-8 rounded-xl"
+            className="w-full rounded-full h-14 text-sm shadow-sm"
             onClick={() => handleFindDoctors()}
           >
             <MapPin className="w-4 h-4 mr-2" />
@@ -96,13 +98,13 @@ function DermatologistCTA() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-white"
+            className="text-foreground"
           >
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Navigation className="w-5 h-5 animate-pulse" />
-              <span className="font-medium">Requesting your location...</span>
+              <Navigation className="w-5 h-5 animate-pulse text-primary" />
+              <span className="font-medium text-sm">Requesting your location...</span>
             </div>
-            <p className="text-white/60 text-sm">
+            <p className="text-muted-foreground text-xs">
               Please allow location access when your browser asks
             </p>
           </motion.div>
@@ -113,10 +115,10 @@ function DermatologistCTA() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-white"
+            className="text-foreground"
           >
-            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-            <p className="font-medium">Finding dermatologists near you...</p>
+            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+            <p className="font-medium text-sm">Finding dermatologists near you...</p>
           </motion.div>
         )}
 
@@ -126,14 +128,14 @@ function DermatologistCTA() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="bg-white/10 border border-white/20
+            <div className="bg-destructive/10 border border-destructive/20
                             rounded-xl p-4 mb-4 text-left">
-              <AlertCircle className="w-5 h-5 text-white mx-auto mb-2" />
-              <p className="text-white font-medium text-sm mb-1 text-center">
+              <AlertCircle className="w-5 h-5 text-destructive mx-auto mb-2" />
+              <p className="text-destructive font-medium text-sm mb-1 text-center">
                 {geoError || 'Could not find your location.'}
               </p>
               {status === 'denied' && (
-                <p className="text-white/60 text-xs text-center mt-2">
+                <p className="text-destructive/80 text-xs text-center mt-2">
                   To enable: click the 🔒 lock icon in your browser address bar
                   → Site settings → Location → Allow
                 </p>
@@ -141,7 +143,7 @@ function DermatologistCTA() {
             </div>
             <Button
               variant="outline"
-              className="border-white/30 text-white hover:bg-white/10"
+              className="w-full rounded-full h-12 text-sm"
               onClick={() => handleFindDoctors()}
             >
               Try Again
@@ -158,17 +160,17 @@ function DermatologistCTA() {
               className="mt-6 text-left"
             >
               {/* Radius filter */}
-              <div className="flex items-center gap-2 mb-4 justify-center flex-wrap">
-                <span className="text-white/70 text-sm">Radius:</span>
+              <div className="flex items-center gap-2 mb-6 justify-center flex-wrap">
+                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Radius:</span>
                 {[2000, 5000, 10000, 20000].map((r) => (
                   <button
                     key={r}
                     onClick={() => handleRadiusChange(r)}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold
                                 transition-all ${
                       radius === r
-                        ? 'bg-white text-brand-teal'
-                        : 'bg-white/10 text-white hover:bg-white/20'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
                     }`}
                   >
                     {r >= 1000 ? `${r / 1000}km` : `${r}m`}
@@ -178,9 +180,9 @@ function DermatologistCTA() {
 
               {/* No results */}
               {doctors.length === 0 && (
-                <div className="text-center text-white/70 py-8">
-                  <p>No dermatologists found in this area.</p>
-                  <p className="text-sm mt-1">Try increasing the radius.</p>
+                <div className="text-center text-muted-foreground py-8 border border-dashed rounded-xl border-border">
+                  <p className="text-sm font-medium">No dermatologists found in this area.</p>
+                  <p className="text-xs mt-1">Try increasing the radius.</p>
                 </div>
               )}
 
@@ -188,38 +190,38 @@ function DermatologistCTA() {
               <div className="space-y-3">
                 {doctors.map((doc, i) => (
                   <motion.div
-                    key={doc.maps_url}
+                    key={doc.name + doc.address + i}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="bg-white/10 backdrop-blur-sm border border-white/15
-                               rounded-xl p-4 hover:bg-white/15 transition-colors"
+                    className="bg-card border border-border
+                               rounded-xl p-4 hover:border-primary/30 transition-colors shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold text-sm truncate">
+                        <p className="text-foreground font-semibold text-sm truncate">
                           {doc.name}
                         </p>
-                        <p className="text-white/60 text-xs mt-0.5 truncate">
+                        <p className="text-muted-foreground text-xs mt-0.5 truncate">
                           {doc.address}
                         </p>
                         <div className="flex items-center gap-3 mt-2 flex-wrap">
                           {doc.rating && (
-                            <span className="flex items-center gap-1 text-xs text-white/70">
-                              <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                              <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
                               {doc.rating}
                               {doc.total_ratings && (
-                                <span className="text-white/40">({doc.total_ratings})</span>
+                                <span className="opacity-60">({doc.total_ratings})</span>
                               )}
                             </span>
                           )}
-                          <span className="flex items-center gap-1 text-xs text-white/70">
-                            <Navigation className="w-3 h-3" />
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                            <Navigation className="w-3.5 h-3.5" />
                             {doc.distance_km} km away
                           </span>
                           {doc.open_now !== null && (
                             <span className={`text-xs font-semibold ${
-                              doc.open_now ? 'text-green-400' : 'text-red-400'
+                              doc.open_now ? 'text-green-600 dark:text-green-500' : 'text-red-500'
                             }`}>
                               {doc.open_now ? 'Open now' : 'Closed'}
                             </span>
@@ -228,15 +230,15 @@ function DermatologistCTA() {
                       </div>
 
                       <a
-                        href={doc.maps_url}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(doc.name + ' ' + doc.address)}`}
                         target="_blank"
                         rel="noreferrer"
                         className="flex-shrink-0 flex items-center gap-1.5
-                                   bg-white text-brand-teal text-xs font-semibold
-                                   px-3 py-2 rounded-lg hover:bg-white/90
+                                   bg-primary/10 text-primary text-xs font-semibold
+                                   px-3 py-2 rounded-lg hover:bg-primary hover:text-primary-foreground
                                    transition-colors whitespace-nowrap"
                       >
-                        <ExternalLink className="w-3 h-3" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                         Directions
                       </a>
                     </div>
@@ -245,11 +247,11 @@ function DermatologistCTA() {
               </div>
 
               {/* Search again */}
-              <div className="text-center mt-5">
+              <div className="text-center mt-6">
                 <button
                   onClick={() => handleFindDoctors()}
-                  className="text-white/60 text-sm hover:text-white
-                             transition-colors underline"
+                  className="text-muted-foreground text-sm hover:text-foreground
+                             transition-colors underline underline-offset-4"
                 >
                   Search again
                 </button>
@@ -257,8 +259,8 @@ function DermatologistCTA() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-    </section>
+      </Card>
+    </div>
   )
 }
 
