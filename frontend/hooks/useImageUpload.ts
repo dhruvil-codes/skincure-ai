@@ -19,13 +19,13 @@ export async function validateImageFile(file: File): Promise<string | null> {
 
   // 3. Too large
   if (file.size > MAX_SIZE_BYTES) {
-    return 'Image is too large. Maximum file size is 10MB.'
+    return `Image is too large. Maximum file size is ${MAX_SIZE_BYTES / (1024 * 1024)}MB.`
   }
 
   // 4. Pixel dimensions check (async)
   const dims = await getImageDimensions(file)
   if (dims.width < MIN_DIMENSION || dims.height < MIN_DIMENSION) {
-    return `Image resolution is too low (${dims.width}×${dims.height}px). Please upload at least a 200×200px photo.`
+    return `Image resolution is too low (${dims.width}×${dims.height}px). Please upload at least a ${MIN_DIMENSION}×${MIN_DIMENSION}px photo.`
   }
 
   return null
