@@ -53,8 +53,8 @@ export function useGeolocation() {
           reject(err)
         },
         {
-          enableHighAccuracy: true,
-          timeout:            10000,   // 10 seconds
+          enableHighAccuracy: false,
+          timeout:            15000,   // 15 seconds
           maximumAge:         300000,  // cache for 5 mins — no re-prompt
         }
       )

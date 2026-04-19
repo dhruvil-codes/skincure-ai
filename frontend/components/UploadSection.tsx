@@ -162,7 +162,7 @@ function DermatologistCTA() {
               {/* Radius filter */}
               <div className="flex items-center gap-2 mb-6 justify-center flex-wrap">
                 <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Radius:</span>
-                {[2000, 5000, 10000, 20000].map((r) => (
+                {[5000, 10000, 15000].map((r) => (
                   <button
                     key={r}
                     onClick={() => handleRadiusChange(r)}
