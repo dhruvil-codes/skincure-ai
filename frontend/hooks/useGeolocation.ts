@@ -39,39 +39,18 @@ export function useGeolocation() {
           setStatus('granted')
           resolve(loc)
         },
-        async (err) => {
+        (err) => {
+          setStatus('denied')
           if (err.code === err.PERMISSION_DENIED) {
-            setStatus('denied')
             setError(
               'Location access was denied. Please enable it in your browser settings to find nearby doctors.'
             )
-            reject(err)
-            return
+          } else if (err.code === err.TIMEOUT) {
+            setError('Location request timed out. Please try again.')
+          } else {
+            setError('Could not get your location. Please try again.')
           }
-
-          // Fallback to IP-based location for desktop devices without GPS/WiFi
-          try {
-            const res = await fetch('https://ipapi.co/json/')
-            if (!res.ok) throw new Error('IP Geolocation failed')
-            const data = await res.json()
-            
-            if (data.latitude && data.longitude) {
-              const loc = { lat: data.latitude, lng: data.longitude }
-              setLocation(loc)
-              setStatus('granted')
-              resolve(loc)
-              return
-            }
-            throw new Error('Invalid IP Geolocation data')
-          } catch (fallbackErr) {
-            setStatus('denied')
-            if (err.code === err.TIMEOUT) {
-              setError('Location request timed out. Please try again.')
-            } else {
-              setError('Could not get your location. Please try again.')
-            }
-            reject(err)
-          }
+          reject(err)
         },
         {
           enableHighAccuracy: false,
