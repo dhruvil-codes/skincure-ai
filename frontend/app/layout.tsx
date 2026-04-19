@@ -40,6 +40,7 @@ export default function RootLayout({
         }} />
       </head>
       <body
+        suppressHydrationWarning
         className="font-sans antialiased bg-background text-foreground relative min-h-screen"
       >
         <ThemeProvider>
