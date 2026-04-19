@@ -1,0 +1,45 @@
+{
+  "model_name": "swinv2_base_window12_192",
+  "num_classes": 24,
+  "image_size": 192,
+  "class_names": [
+    "Acne and Rosacea Photos",
+    "Actinic Keratosis Basal Cell Carcinoma and other Malignant Lesions",
+    "Atopic Dermatitis Photos",
+    "Bullous Disease Photos",
+    "Cellulitis Impetigo and other Bacterial Infections",
+    "Eczema Photos",
+    "Exanthems and Drug Eruptions",
+    "Hair Loss Photos Alopecia and other Hair Diseases",
+    "Herpes HPV and other STDs Photos",
+    "Light Diseases and Disorders of Pigmentation",
+    "Lupus and other Connective Tissue diseases",
+    "Melanoma Skin Cancer Nevi and Moles",
+    "Nail Fungus and other Nail Disease",
+    "Poison Ivy Photos and other Contact Dermatitis",
+    "Psoriasis pictures Lichen Planus and related diseases",
+    "Scabies Lyme Disease and other Infestations and Bites",
+    "Seborrheic Keratoses and other Benign Tumors",
+    "Systemic Disease",
+    "Tinea Ringworm Candidiasis and other Fungal Infections",
+    "Urticaria Hives",
+    "Vascular Tumors",
+    "Vasculitis Photos",
+    "Warts Molluscum and other Viral Infections",
+    "skin_cancer"
+  ],
+  "val_accuracy": 0.78,
+  "tta_accuracy": 0.81,
+  "normalization": {
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  }
+}
